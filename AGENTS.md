@@ -60,6 +60,16 @@ scripts/hooks
 - Claude Code reads `CLAUDE.md`, which imports `AGENTS.md`.
 - Keep shared instructions in `AGENTS.md` unless a tool-specific note is required.
 
+## Adopting This Harness
+
+After creating a repository from this template or fork:
+
+1. Replace the `LICENSE` copyright line with the new project owner's name.
+2. Rewrite `README.md` for the new project; the default README describes the harness itself.
+3. Update repository metadata such as description, topics, and social preview.
+4. Remove or adjust `.github/ISSUE_TEMPLATE` entries that do not fit the project.
+5. Keep the standard scripts unless the new project has a better documented entrypoint.
+
 ## Script Policy
 
 These scripts are intentionally stack-aware and conservative. If a language stack
