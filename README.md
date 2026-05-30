@@ -1,16 +1,29 @@
 # Harness for Codex
 
-A minimal repository harness for Codex-based work.
+A language-agnostic repository harness for OpenAI Codex, coding agents,
+Claude Code, and Cursor. It provides durable `AGENTS.md` instructions,
+standard automation entrypoints, task templates, verification scripts, and
+lightweight workflow docs for agent-driven software work.
 
-The goal is to give every future task a predictable starting point:
+Use this repository as a Codex harness, `AGENTS.md` template, or reusable
+coding-agent project scaffold when you want every future task to start from a
+predictable baseline:
 
-- one place for agent instructions
+- one place for agent instructions through `AGENTS.md`
 - one bootstrap command
 - one check command
 - one test command
 - one full evaluation command
 - optional hooks and devcontainer metadata
 - lightweight documentation for decisions and tasks
+
+## Use Cases
+
+- Start a new repository with Codex-ready agent instructions.
+- Standardize coding-agent workflows across OpenAI Codex, Claude Code, and Cursor.
+- Give automation agents stable commands for setup, checks, tests, and handoff evaluation.
+- Keep project decisions and task briefs in predictable locations.
+- Add a language stack later without replacing the harness contract.
 
 ## Quick Start
 
@@ -19,6 +32,17 @@ scripts/bootstrap
 scripts/check
 scripts/doctor
 ```
+
+## What This Provides
+
+- `AGENTS.md`: repository-local operating instructions for Codex and compatible agents.
+- `CLAUDE.md`: Claude Code bridge that imports the shared `AGENTS.md` guidance.
+- `scripts/bootstrap`: dependency preparation when a known stack is present.
+- `scripts/check`: lint, format, type, and test checks when available.
+- `scripts/test`: focused test-suite entrypoint.
+- `scripts/eval`: complete handoff verification through doctor, bootstrap, and check.
+- `tasks/TEMPLATE.md`: task brief template for work that needs durable context.
+- `docs/decisions.md`: durable decisions future agents should preserve.
 
 ## Workflow
 
@@ -45,6 +69,15 @@ just eval
 
 These scripts are safe defaults for an empty or early-stage repository. Extend
 them as the project grows.
+
+## Compatible Agents
+
+- OpenAI Codex reads `AGENTS.md` for repository instructions.
+- Cursor can use `AGENTS.md` as shared project guidance.
+- Claude Code reads `CLAUDE.md`, which imports the same shared instructions.
+
+Keep shared rules in `AGENTS.md` so agent behavior stays consistent across
+tools. Add tool-specific notes only when a tool requires a different bridge.
 
 ## Harness Metadata
 

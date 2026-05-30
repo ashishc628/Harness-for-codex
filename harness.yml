@@ -1,6 +1,6 @@
 version: 1
 name: harness-for-codex
-description: Language-agnostic baseline harness for Codex-driven repository work.
+description: Language-agnostic Codex harness with AGENTS.md, automation scripts, task templates, and verification workflows.
 
 commands:
   bootstrap: scripts/bootstrap
@@ -16,6 +16,8 @@ documents:
   workflow: docs/workflow.md
   decisions: docs/decisions.md
   references: docs/references.md
+  contributing: CONTRIBUTING.md
+  changelog: CHANGELOG.md
   task_template: tasks/TEMPLATE.md
   devcontainer: .devcontainer/devcontainer.json
   pre_commit: .pre-commit-config.yaml

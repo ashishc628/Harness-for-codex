@@ -22,3 +22,9 @@ Record durable project decisions here.
 - Added a minimal devcontainer that runs `scripts/bootstrap` after creation.
 - Tightened GitHub Actions with read-only permissions, timeout, concurrency, and `scripts/eval`.
 - Added a `justfile` as an optional task-runner facade over the canonical scripts.
+
+## 2026-05-18: Improve Public Project Readiness
+
+- Reworked the README opening sections to make the harness purpose, compatible agents, and standard workflow clearer.
+- Added `CONTRIBUTING.md`, `CHANGELOG.md`, issue templates, and a pull request template for public collaboration.
+- Left license selection as an owner decision because it affects legal reuse terms.
