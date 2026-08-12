@@ -9,6 +9,8 @@ commands:
   eval: scripts/eval
   doctor: scripts/doctor
   hooks: scripts/hooks
+  agent_eval: scripts/agent-eval
+  selftest: scripts/selftest
 
 documents:
   agent_instructions: AGENTS.md
@@ -19,6 +21,7 @@ documents:
   contributing: CONTRIBUTING.md
   changelog: CHANGELOG.md
   task_template: tasks/TEMPLATE.md
+  evals: docs/evals.md
   devcontainer: .devcontainer/devcontainer.json
   pre_commit: .pre-commit-config.yaml
 
@@ -29,9 +32,19 @@ task_loop:
   - verify
   - handoff
 
+# Two layers. scripts/eval verifies this repository; scripts/agent-eval
+# verifies the instructions this repository ships to agents.
 verification:
-  default: scripts/check
+  repository: scripts/check
   handoff: scripts/eval
+  default: scripts/check
+  agent_instructions: scripts/agent-eval
+
+evals:
+  cases: evals/cases
+  runner: scripts/agent-eval
+  env: AGENT_CMD
+  optional: true
 
 compatibility:
   codex: AGENTS.md

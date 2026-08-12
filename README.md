@@ -23,6 +23,7 @@ predictable baseline:
 - Standardize coding-agent workflows across OpenAI Codex, Claude Code, and Cursor.
 - Give automation agents stable commands for setup, checks, tests, and handoff evaluation.
 - Keep project decisions and task briefs in predictable locations.
+- Measure whether a change to `AGENTS.md` actually changed agent behavior.
 - Add a language stack later without replacing the harness contract.
 
 ## Quick Start
@@ -41,8 +42,30 @@ scripts/doctor
 - `scripts/check`: lint, format, type, and test checks when available.
 - `scripts/test`: focused test-suite entrypoint.
 - `scripts/eval`: complete handoff verification through doctor, bootstrap, and check.
+- `scripts/agent-eval`: measures the shipped `AGENTS.md` against task cases with binary graders.
 - `tasks/TEMPLATE.md`: task brief template for work that needs durable context.
 - `docs/decisions.md`: durable decisions future agents should preserve.
+
+## Agent Evals
+
+`AGENTS.md` is what this repository ships, and nothing measured it. `scripts/eval`
+is doctor + bootstrap + check — it verifies the *repository*. The question it
+cannot answer is the only one that matters for a harness: *I changed the
+instructions; did agents get better or worse?*
+
+`scripts/agent-eval` answers it:
+
+```sh
+AGENT_CMD='codex exec --full-auto "$(cat "$TASK_FILE")"' scripts/agent-eval
+AGENT_CMD='evals/agents/scripted good' scripts/agent-eval   # no model needed
+```
+
+Each case runs in a throwaway git workspace and is graded by binary checks that
+look at behavior, not just output: did it fix the bug, leave unrelated files
+alone, actually run verification or only claim to, ask instead of guessing.
+Results report **pass@k** (can it ever?) and **pass^k** (can it be relied on?),
+then a backlog of failed checks by frequency — a to-do list for the
+instructions, built from evidence. See [docs/evals.md](docs/evals.md).
 
 ## Workflow
 

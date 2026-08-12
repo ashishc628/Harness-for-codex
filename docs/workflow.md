@@ -33,6 +33,18 @@ scripts/eval
 Use `scripts/check` for faster inner-loop verification and `scripts/eval` before
 handoff. If either command cannot run, document why in the final handoff.
 
+## Changing Agent Instructions
+
+Editing `AGENTS.md` is editing behavior, so measure it:
+
+```sh
+AGENT_CMD='<your agent>' scripts/agent-eval
+```
+
+Add a case under `evals/cases/` for any rule meant to change what agents do,
+and run the suite before and after. A rule that moves no check should not be
+added. See [evals.md](evals.md).
+
 ## Adding a New Stack
 
 When adding a language or framework:
