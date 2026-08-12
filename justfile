@@ -21,3 +21,6 @@ surface *ARGS:
 
 selftest:
     scripts/selftest
+
+agent-eval *ARGS:
+    scripts/agent-eval {{ARGS}}

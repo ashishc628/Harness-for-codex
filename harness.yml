@@ -10,6 +10,7 @@ commands:
   doctor: scripts/doctor
   hooks: scripts/hooks
   surface: scripts/surface
+  agent_eval: scripts/agent-eval
   selftest: scripts/selftest
 
 documents:
@@ -21,6 +22,7 @@ documents:
   contributing: CONTRIBUTING.md
   changelog: CHANGELOG.md
   task_template: tasks/TEMPLATE.md
+  evals: docs/evals.md
   surfaces: docs/surfaces.md
   surfaces_example: surfaces.example.yml
   devcontainer: .devcontainer/devcontainer.json
@@ -34,10 +36,20 @@ task_loop:
   - verify
   - handoff
 
+# Two layers. scripts/eval verifies this repository; scripts/agent-eval
+# verifies the instructions this repository ships to agents.
 verification:
-  default: scripts/check
+  repository: scripts/check
   handoff: scripts/eval
+  default: scripts/check
   surface: scripts/surface check
+  agent_instructions: scripts/agent-eval
+
+evals:
+  cases: evals/cases
+  runner: scripts/agent-eval
+  env: AGENT_CMD
+  optional: true
 
 surfaces:
   config: surfaces.yml

@@ -14,6 +14,7 @@ scripts/eval
 scripts/doctor
 scripts/hooks
 scripts/surface
+scripts/agent-eval
 ```
 
 - `scripts/bootstrap`: prepare dependencies when a known stack is present.
@@ -23,6 +24,7 @@ scripts/surface
 - `scripts/doctor`: report repository, tool, and environment readiness.
 - `scripts/hooks`: install local Git hooks through `pre-commit` when available.
 - `scripts/surface`: resolve, enforce, and confirm the deploy target of a task.
+- `scripts/agent-eval`: measure whether these instructions change agent behavior.
 
 ## Repository Layout
 
@@ -35,6 +37,7 @@ scripts/surface
 - `docs/`: Project notes and decisions.
 - `scripts/`: Stable automation entrypoints.
 - `tasks/`: Task briefs and working notes.
+- `evals/`: Task cases and graders that measure these instructions.
 - `surfaces.yml`: Optional deploy-surface declarations. See `docs/surfaces.md`.
 
 ## Operating Principles
@@ -99,6 +102,21 @@ After creating a repository from this template or fork:
 3. Update repository metadata such as description, topics, and social preview.
 4. Remove or adjust `.github/ISSUE_TEMPLATE` entries that do not fit the project.
 5. Keep the standard scripts unless the new project has a better documented entrypoint.
+
+## Changing These Instructions
+
+`AGENTS.md` is the product of this repository, so editing it is editing
+behavior, and behavior is measurable.
+
+- Before adding a rule, check whether an existing one already covers it. Rules
+  nobody enforces make the ones that matter harder to find.
+- When you add a rule meant to change what agents do, add a case under
+  `evals/cases/` that fails without it.
+- Run `scripts/agent-eval` before and after. A rule that moves no check is
+  either already followed or not followed at all; neither is worth adding text
+  for.
+- `scripts/eval` verifies this repository. `scripts/agent-eval` verifies these
+  instructions. They are different layers — never report one as the other.
 
 ## Script Policy
 

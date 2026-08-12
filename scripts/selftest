@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
-# Harness self-test. Exercises scripts/surface in a scratch git repository so
-# the surface contract is verified by CI without imposing surfaces on this
-# repository or on repositories adopting the harness.
+# Harness self-test. Two suites:
+#
+# 1. scripts/surface, exercised in a scratch git repository so the surface
+#    contract is verified by CI without imposing surfaces on this repository
+#    or on repositories adopting the harness.
+# 2. scripts/agent-eval, exercised with the scripted stand-in agent, so the
+#    graders are themselves tested: `good` must pass every case and `sloppy`
+#    must fail. A grader that cannot tell those apart measures nothing.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -37,6 +42,13 @@ expect_contains() {
   # piping it directly would also expose it to SIGPIPE from `grep -q`.
   out="$("$@" 2>&1 || true)"
   if printf '%s\n' "$out" | grep -qF -- "$needle"; then pass "$label"; else fail "$label"; fi
+}
+
+expect_missing() {
+  local label="$1" needle="$2" out
+  shift 2
+  out="$("$@" 2>&1 || true)"
+  if printf '%s\n' "$out" | grep -qF -- "$needle"; then fail "$label"; else pass "$label"; fi
 }
 
 mkdir -p "$work/repo/scripts"
@@ -194,6 +206,50 @@ git add -A
 git commit -qm "admin change"
 expect_fail "committed wrong-surface change fails against base" scripts/surface check website --base HEAD~1
 expect_ok "committed change passes its own surface" scripts/surface check admin --base HEAD~1
+
+echo
+echo "== agent eval: no agent configured =="
+cd "$ROOT"
+expect_contains "no AGENT_CMD is a no-op" "no agent to evaluate" scripts/agent-eval
+
+echo
+echo "== agent eval: scripted good variant =="
+expect_ok "passes every case" \
+  env AGENT_CMD="evals/agents/scripted good" EVAL_TRIALS=1 scripts/agent-eval
+expect_contains "reports pass^k" "pass^1" \
+  env AGENT_CMD="evals/agents/scripted good" EVAL_TRIALS=1 scripts/agent-eval
+expect_contains "json output reports pass_pow_k" "pass_pow_k" \
+  env AGENT_CMD="evals/agents/scripted good" EVAL_TRIALS=1 scripts/agent-eval --json
+
+echo
+echo "== agent eval: scripted sloppy variant =="
+expect_fail "fails the suite" \
+  env AGENT_CMD="evals/agents/scripted sloppy" EVAL_TRIALS=1 scripts/agent-eval
+expect_contains "backlog is reported" "Harness backlog" \
+  env AGENT_CMD="evals/agents/scripted sloppy" EVAL_TRIALS=1 scripts/agent-eval
+
+echo
+echo "== agent eval: the graders discriminate =="
+# The sloppy agent writes correct code in three of four cases. Everything it
+# fails, it fails on behaviour.
+expect_missing "sloppy still fixes the bug" "scoped-change bug-is-fixed" \
+  env AGENT_CMD="evals/agents/scripted sloppy" EVAL_TRIALS=1 scripts/agent-eval --case scoped-change
+expect_contains "caught skipping verification" "scoped-change ran-verification" \
+  env AGENT_CMD="evals/agents/scripted sloppy" EVAL_TRIALS=1 scripts/agent-eval --case scoped-change
+expect_contains "caught touching unrelated files" "scoped-change left-unrelated-files-alone" \
+  env AGENT_CMD="evals/agents/scripted sloppy" EVAL_TRIALS=1 scripts/agent-eval --case scoped-change
+expect_missing "sloppy still writes a working function" "verify-before-handoff function-is-correct" \
+  env AGENT_CMD="evals/agents/scripted sloppy" EVAL_TRIALS=1 scripts/agent-eval --case verify-before-handoff
+expect_contains "caught claiming verification it never ran" "verify-before-handoff ran-verification" \
+  env AGENT_CMD="evals/agents/scripted sloppy" EVAL_TRIALS=1 scripts/agent-eval --case verify-before-handoff
+expect_contains "caught guessing an ambiguous target" "ambiguous-target did-not-guess" \
+  env AGENT_CMD="evals/agents/scripted sloppy" EVAL_TRIALS=1 scripts/agent-eval --case ambiguous-target
+expect_missing "sloppy still applies the change" "record-decision applied-the-change" \
+  env AGENT_CMD="evals/agents/scripted sloppy" EVAL_TRIALS=1 scripts/agent-eval --case record-decision
+expect_contains "caught skipping the decision record" "record-decision recorded-the-decision" \
+  env AGENT_CMD="evals/agents/scripted sloppy" EVAL_TRIALS=1 scripts/agent-eval --case record-decision
+expect_fail "unknown case is an error" \
+  env AGENT_CMD="evals/agents/scripted good" scripts/agent-eval --case no-such-case
 
 echo
 if ((failures)); then
