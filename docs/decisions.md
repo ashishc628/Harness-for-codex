@@ -28,3 +28,21 @@ Record durable project decisions here.
 - Reworked the README opening sections to make the harness purpose, compatible agents, and standard workflow clearer.
 - Added `CONTRIBUTING.md`, `CHANGELOG.md`, issue templates, and a pull request template for public collaboration.
 - Left license selection as an owner decision because it affects legal reuse terms.
+
+## 2026-08-12: Make the Deploy Target a Repository Fact
+
+- Added `surfaces.yml` (optional), `scripts/surface`, and `scripts/surface-precommit`
+  so multi-target repositories declare which paths and deploy command belong to
+  each surface.
+- Added a required `Surface` field to `tasks/TEMPLATE.md`, because a target that
+  lives only in conversation is lost to context compaction, and the resulting
+  wrong-target deploy fails silently: the command succeeds, on the wrong thing.
+- Made `scripts/check` enforce containment when `SURFACE` is set, rather than
+  adding a separate verification path agents would have to remember.
+- Kept everything a no-op without `surfaces.yml`, so the existing harness
+  contract is unchanged for single-target repositories.
+- Chose path-based containment over deploy-command interception: it is
+  language-agnostic, needs no runtime dependency, and catches the mistake
+  before the commit rather than after the release.
+- Added `scripts/selftest` so the surface contract is verified in CI without
+  declaring surfaces for this repository.

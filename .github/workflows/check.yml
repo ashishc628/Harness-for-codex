@@ -19,5 +19,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - name: Run harness self-test
+        run: scripts/selftest
       - name: Run harness evaluation
         run: scripts/eval

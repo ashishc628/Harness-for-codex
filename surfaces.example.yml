@@ -1,0 +1,68 @@
+# Deploy surfaces for this repository.
+#
+# Copy this file to `surfaces.yml` and edit it. A surface is one deployable
+# target: an app store build, a website, an admin console. Declaring surfaces
+# makes the target of a task a fact in the repository instead of an assumption
+# in an agent's context window.
+#
+# Format notes:
+# - `paths` are globs. `**` matches across directories. A trailing `/` means
+#   "everything under this directory".
+# - `deny` lists paths a surface must never touch, even when a glob would
+#   otherwise allow it. Use it for neighbours that are easy to confuse.
+# - `shared` lists paths any surface may change (docs, harness files).
+# - Keep `deploy` as the one command that ships this surface. Agents are
+#   instructed not to run any other deploy command.
+
+version: 1
+
+shared:
+  - "docs/"
+  - "tasks/"
+  - "AGENTS.md"
+  - "CLAUDE.md"
+  - "README.md"
+  - "CHANGELOG.md"
+
+surfaces:
+  - id: ios
+    name: iOS app (App Store)
+    paths:
+      - "app/"
+      - "ios/"
+    deny:
+      - "web/"
+      - "admin/"
+    verify: "npm --prefix app run typecheck"
+    deploy: "eas build --platform ios --profile production"
+
+  - id: android
+    name: Android app (Play Store)
+    paths:
+      - "app/"
+      - "android/"
+    deny:
+      - "web/"
+      - "admin/"
+    verify: "npm --prefix app run typecheck"
+    deploy: "eas build --platform android --profile production"
+
+  - id: website
+    name: Marketing website
+    paths:
+      - "web/"
+    deny:
+      - "admin/"
+      - "app/"
+    verify: "npm --prefix web run build"
+    deploy: "npm --prefix web run deploy"
+
+  - id: admin
+    name: Admin console
+    paths:
+      - "admin/"
+    deny:
+      - "web/"
+      - "app/"
+    verify: "npm --prefix admin run build"
+    deploy: "scripts/deploy-admin"

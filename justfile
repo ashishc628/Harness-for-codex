@@ -15,3 +15,9 @@ doctor:
 
 hooks:
     scripts/hooks
+
+surface *ARGS:
+    scripts/surface {{ARGS}}
+
+selftest:
+    scripts/selftest

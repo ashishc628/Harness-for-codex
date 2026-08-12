@@ -13,6 +13,7 @@ scripts/test
 scripts/eval
 scripts/doctor
 scripts/hooks
+scripts/surface
 ```
 
 - `scripts/bootstrap`: prepare dependencies when a known stack is present.
@@ -21,6 +22,7 @@ scripts/hooks
 - `scripts/eval`: run the complete handoff verification sequence.
 - `scripts/doctor`: report repository, tool, and environment readiness.
 - `scripts/hooks`: install local Git hooks through `pre-commit` when available.
+- `scripts/surface`: resolve, inspect, and enforce the deploy target of a task.
 
 ## Repository Layout
 
@@ -33,6 +35,7 @@ scripts/hooks
 - `docs/`: Project notes and decisions.
 - `scripts/`: Stable automation entrypoints.
 - `tasks/`: Task briefs and working notes.
+- `surfaces.yml`: Optional deploy-surface declarations. See `docs/surfaces.md`.
 
 ## Operating Principles
 
@@ -48,11 +51,34 @@ scripts/hooks
 
 ## Task Loop
 
-1. Inspect: read relevant files and recent decisions.
-2. Plan: identify the narrow change and verification path.
-3. Implement: make focused edits.
-4. Verify: run `scripts/check` or `scripts/eval`.
-5. Handoff: summarize changed files, verification, and residual risks.
+1. Target: resolve the deploy surface and record it in the task brief.
+2. Inspect: read relevant files and recent decisions.
+3. Plan: identify the narrow change and verification path.
+4. Implement: make focused edits.
+5. Verify: run `scripts/check` or `scripts/eval`, and `scripts/surface check`.
+6. Handoff: summarize changed files, surface, verification, and residual risks.
+
+## Surface Targeting
+
+This applies when `surfaces.yml` exists. Skip it when it does not.
+
+A repository can ship to several targets — an app store build, a website, an
+admin console — through commands that look alike. The surface a task targets is
+a fact about the task, so it belongs in a file, not in context that will be
+compacted away.
+
+- Resolve the surface before editing. Run `scripts/surface list` and state the
+  chosen id in the task brief's `Surface` field.
+- When the request does not identify a surface unambiguously, stop and ask.
+  Do not infer one from the file you happened to open first.
+- Run `scripts/surface plan <id>` before deploying, and run only the `deploy`
+  command it prints. Never run another target's deploy command, and never
+  substitute a command that looks equivalent.
+- Run `scripts/surface check <id>` before handoff, or `SURFACE=<id>
+  scripts/check`. If it fails, do not "fix" it by widening `surfaces.yml`:
+  either the diff is wrong or the declared target is.
+- State the surface and the deploy command in the handoff, so the next agent
+  inherits the target instead of re-deriving it.
 
 ## Cross-Agent Compatibility
 

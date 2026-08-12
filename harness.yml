@@ -9,6 +9,8 @@ commands:
   eval: scripts/eval
   doctor: scripts/doctor
   hooks: scripts/hooks
+  surface: scripts/surface
+  selftest: scripts/selftest
 
 documents:
   agent_instructions: AGENTS.md
@@ -19,10 +21,13 @@ documents:
   contributing: CONTRIBUTING.md
   changelog: CHANGELOG.md
   task_template: tasks/TEMPLATE.md
+  surfaces: docs/surfaces.md
+  surfaces_example: surfaces.example.yml
   devcontainer: .devcontainer/devcontainer.json
   pre_commit: .pre-commit-config.yaml
 
 task_loop:
+  - target
   - inspect
   - plan
   - implement
@@ -32,6 +37,12 @@ task_loop:
 verification:
   default: scripts/check
   handoff: scripts/eval
+  surface: scripts/surface check
+
+surfaces:
+  config: surfaces.yml
+  optional: true
+  env: SURFACE
 
 compatibility:
   codex: AGENTS.md
