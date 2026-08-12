@@ -4,6 +4,11 @@ All notable changes to this project are recorded here.
 
 ## Unreleased
 
+- Add `docs/enforcement.md` and `.github/workflows/deploy.yml.example`, which
+  separate the enforced parts of the surface contract from the advisory ones
+  and show the CI wiring that makes a wrong-place deploy impossible rather than
+  discouraged.
+
 - Add `scripts/agent-eval`, `evals/cases/`, and a scripted stand-in agent, so a
   change to `AGENTS.md` can be measured instead of guessed at. Reports pass@k,
   pass^k, and a backlog of failed checks by frequency.

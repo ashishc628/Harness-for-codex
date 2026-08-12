@@ -78,7 +78,8 @@ compacted away.
   scripts/check`. If it fails, do not "fix" it by widening `surfaces.yml`:
   either the diff is wrong or the declared target is.
 - Deploy with `scripts/surface run <id>`, which verifies, deploys, and then
-  confirms. Do not assemble the deploy command yourself, do not run another
+  confirms. In a repository wired per `docs/enforcement.md`, deploys happen in
+  CI and no other path holds credentials. Do not assemble the deploy command yourself, do not run another
   surface's deploy command, and do not substitute one that looks equivalent.
 - A deploy command exiting 0 is not evidence that anything shipped. Never
   report a deploy as done on the strength of an exit code alone; report it as

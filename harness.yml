@@ -24,6 +24,8 @@ documents:
   task_template: tasks/TEMPLATE.md
   evals: docs/evals.md
   surfaces: docs/surfaces.md
+  enforcement: docs/enforcement.md
+  deploy_workflow: .github/workflows/deploy.yml.example
   surfaces_example: surfaces.example.yml
   devcontainer: .devcontainer/devcontainer.json
   pre_commit: .pre-commit-config.yaml

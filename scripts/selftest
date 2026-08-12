@@ -208,6 +208,15 @@ expect_fail "committed wrong-surface change fails against base" scripts/surface 
 expect_ok "committed change passes its own surface" scripts/surface check admin --base HEAD~1
 
 echo
+echo "== enforcement example =="
+cd "$ROOT"
+expect_ok "deploy workflow example exists" test -f .github/workflows/deploy.yml.example
+expect_contains "example deploys only through surface run" "scripts/surface run" cat .github/workflows/deploy.yml.example
+expect_contains "example scopes secrets per surface" "environment: " cat .github/workflows/deploy.yml.example
+expect_contains "example gates deploy on containment" "surface check" cat .github/workflows/deploy.yml.example
+cd "$work/repo"
+
+echo
 echo "== agent eval: no agent configured =="
 cd "$ROOT"
 expect_contains "no AGENT_CMD is a no-op" "no agent to evaluate" scripts/agent-eval

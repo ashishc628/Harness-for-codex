@@ -126,6 +126,21 @@ The check names files, not intentions. If the diff is right and the declared
 surface is wrong, fix the task brief; if the brief is right, the diff is the
 bug. Do not resolve a failure by widening `paths`.
 
+## Making It Enforcement Rather Than Advice
+
+Containment and `confirm` are enforced: a wrong diff fails a check, and a
+deploy that ships nothing fails `run`. "Deploy only through `scripts/surface
+run`" is not enforced — it is a sentence in `AGENTS.md`, and nothing stops an
+agent typing the deploy CLI directly.
+
+That gap closes by moving credentials, not by writing a firmer instruction:
+deploy only from CI, make `scripts/surface run <id>` the workflow's only deploy
+step, and scope each surface's tokens to a GitHub Environment named after it.
+A wrong command then fails on authentication rather than on discipline.
+
+`.github/workflows/deploy.yml.example` is a working version of that wiring. See
+[enforcement.md](enforcement.md).
+
 ## Limits
 
 - Containment is path-based. Two surfaces that legitimately share a tree — an

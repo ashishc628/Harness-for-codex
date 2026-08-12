@@ -80,3 +80,17 @@ Record durable project decisions here.
 - Added a scripted agent with `good` and `sloppy` variants so the suite runs in
   CI with no model or network, and so the graders are themselves tested: the
   sloppy variant writes correct code and must still fail.
+
+## 2026-08-12: Enforcement Comes From Credentials, Not Instructions
+
+- Documented which parts of the surface contract are enforced (containment,
+  `confirm`) and which are only instructed ("deploy through `run`", "ask when
+  ambiguous"). Presenting an instruction as a guarantee is worse than having no
+  guarantee, because it stops people building the real control.
+- Added a deploy workflow example that scopes each surface's secrets to a
+  GitHub Environment of the same name. A wrong deploy command then fails on
+  authentication, which no instruction can achieve.
+- Gated the deploy job on a containment check so a diff that escaped its
+  surface never reaches a step holding credentials.
+- Shipped the workflow as `.example` rather than an active workflow, because it
+  needs per-project surfaces and secrets before it can run.

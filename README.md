@@ -92,6 +92,11 @@ command that deploys it, and a `confirm` command that proves the new version is
 actually live. A surface's `root` may be a subdirectory or a separate checkout,
 so this works for a monorepo and for sibling repositories alike.
 
+Containment and confirmation are enforced; "use only this deploy command" is
+advice until the credentials move. `.github/workflows/deploy.yml.example` and
+[docs/enforcement.md](docs/enforcement.md) show the wiring that makes a
+wrong-place deploy fail on authentication rather than on discipline.
+
 `SURFACE=web scripts/check` folds containment into normal verification, and
 `tasks/TEMPLATE.md` records the surface so it survives context compaction.
 Projects without `surfaces.yml` are unaffected. See
