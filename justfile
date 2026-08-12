@@ -15,3 +15,9 @@ doctor:
 
 hooks:
     scripts/hooks
+
+agent-eval *ARGS:
+    scripts/agent-eval {{ARGS}}
+
+selftest:
+    scripts/selftest
