@@ -46,3 +46,18 @@ Record durable project decisions here.
   before the commit rather than after the release.
 - Added `scripts/selftest` so the surface contract is verified in CI without
   declaring surfaces for this repository.
+
+## 2026-08-12: Confirm Deploys Instead of Trusting Exit Codes
+
+- Added `confirm` to each surface and `scripts/surface confirm` / `scripts/surface run`.
+  A deploy command exiting 0 means the command ran, not that the new version is
+  live: a manual publish step that was never clicked, an upload from the wrong
+  directory, and a deploy to a stale alias all exit 0.
+- Made `run` the single deploy entrypoint (verify, deploy, confirm) so agents do
+  not assemble deploy invocations themselves, which is where near-miss commands
+  come from.
+- Added `root` to surfaces so containment works across sibling checkouts, not
+  only within one git tree. Projects whose surfaces are separate repositories
+  were otherwise excluded from the contract.
+- Kept `confirm` optional but loud: `run` warns explicitly when a surface has
+  none, rather than implying a successful ship.

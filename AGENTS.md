@@ -22,7 +22,7 @@ scripts/surface
 - `scripts/eval`: run the complete handoff verification sequence.
 - `scripts/doctor`: report repository, tool, and environment readiness.
 - `scripts/hooks`: install local Git hooks through `pre-commit` when available.
-- `scripts/surface`: resolve, inspect, and enforce the deploy target of a task.
+- `scripts/surface`: resolve, enforce, and confirm the deploy target of a task.
 
 ## Repository Layout
 
@@ -71,14 +71,18 @@ compacted away.
   chosen id in the task brief's `Surface` field.
 - When the request does not identify a surface unambiguously, stop and ask.
   Do not infer one from the file you happened to open first.
-- Run `scripts/surface plan <id>` before deploying, and run only the `deploy`
-  command it prints. Never run another target's deploy command, and never
-  substitute a command that looks equivalent.
 - Run `scripts/surface check <id>` before handoff, or `SURFACE=<id>
   scripts/check`. If it fails, do not "fix" it by widening `surfaces.yml`:
   either the diff is wrong or the declared target is.
-- State the surface and the deploy command in the handoff, so the next agent
-  inherits the target instead of re-deriving it.
+- Deploy with `scripts/surface run <id>`, which verifies, deploys, and then
+  confirms. Do not assemble the deploy command yourself, do not run another
+  surface's deploy command, and do not substitute one that looks equivalent.
+- A deploy command exiting 0 is not evidence that anything shipped. Never
+  report a deploy as done on the strength of an exit code alone; report it as
+  done only after `scripts/surface confirm <id>` passes. If a surface declares
+  no `confirm`, say so explicitly in the handoff instead of implying success.
+- State the surface, the deploy command, and the confirmation result in the
+  handoff, so the next agent inherits the target instead of re-deriving it.
 
 ## Cross-Agent Compatibility
 

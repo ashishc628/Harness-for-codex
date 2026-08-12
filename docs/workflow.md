@@ -15,6 +15,9 @@ scripts/surface list
 scripts/surface plan <id>
 ```
 
+`plan` prints the three commands for that surface: verify, deploy, and the
+`confirm` that proves the deploy landed.
+
 Record the surface in the task brief before editing anything. When the
 repository has no `surfaces.yml`, these commands are no-ops and the step is
 skipped. See `docs/surfaces.md`.
@@ -46,6 +49,16 @@ When the repository declares surfaces, verify containment too:
 ```sh
 SURFACE=<id> scripts/check
 ```
+
+Deploy through the surface, never by hand:
+
+```sh
+scripts/surface run <id>
+```
+
+It verifies, deploys, then confirms. Report a deploy as done only after the
+confirm step passes; an exit code from the deploy command alone does not mean
+anything shipped.
 
 Use `scripts/check` for faster inner-loop verification and `scripts/eval` before
 handoff. If either command cannot run, document why in the final handoff.

@@ -4,6 +4,7 @@
 
 - Surface: `<id from scripts/surface list, or "none" when the repository declares no surfaces>`
 - Deploy command: `<the deploy line printed by scripts/surface plan <id>>`
+- Confirmation: `<the confirm line, and how it proved the change is live>`
 
 State the surface before doing any work. If the request does not identify one
 unambiguously, stop and ask rather than inferring it.
@@ -34,4 +35,5 @@ Record commands and results, including `scripts/surface check <id>`.
 - Surface: `<id>`
 - Changed files:
 - Verification run:
+- Deployed: `<yes/no>` — confirmed by: `<confirm command and its result>`
 - Residual risks:

@@ -41,8 +41,12 @@ verification:
 
 surfaces:
   config: surfaces.yml
+  example: surfaces.example.yml
   optional: true
   env: SURFACE
+  containment: scripts/surface check
+  deploy: scripts/surface run
+  confirmation: scripts/surface confirm
 
 compatibility:
   codex: AGENTS.md

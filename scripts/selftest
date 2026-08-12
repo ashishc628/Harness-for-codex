@@ -65,8 +65,9 @@ surfaces:
       - "web/"
     deny:
       - "admin/"
-    verify: "web verify"
-    deploy: "web deploy"
+    verify: "true"
+    deploy: "true"
+    confirm: "test -f web/.shipped"
 
   - id: admin
     name: Admin console
@@ -74,8 +75,9 @@ surfaces:
       - "admin/"
     deny:
       - "web/"
-    verify: "admin verify"
-    deploy: "admin deploy"
+    verify: "true"
+    deploy: "touch admin/.shipped"
+    confirm: "test -f admin/.shipped"
 YAML
 
 mkdir -p web admin docs
@@ -89,9 +91,10 @@ echo
 echo "== parsing =="
 expect_contains "list shows website" "Marketing website" scripts/surface list
 expect_contains "list shows admin" "Admin console" scripts/surface list
-expect_contains "show prints deploy" "web deploy" scripts/surface show website
+expect_contains "show prints root" "root:" scripts/surface show website
 expect_contains "show prints deny" "admin/" scripts/surface show website
-expect_contains "plan prints verify" "web verify" scripts/surface plan website
+expect_contains "plan numbers three steps" "3. Confirm:" scripts/surface plan website
+expect_contains "plan points at run" "scripts/surface run website" scripts/surface plan website
 expect_fail "unknown surface rejected" scripts/surface show nope
 expect_contains "unknown surface names known ids" "Known:" scripts/surface show nope
 
@@ -142,6 +145,47 @@ expect_ok "SURFACE=admin check passes" env SURFACE=admin scripts/check
 expect_ok "pre-commit guard skips without SURFACE" scripts/surface-precommit
 expect_fail "pre-commit guard enforces SURFACE" env SURFACE=website scripts/surface-precommit
 git checkout -- admin/index.html
+
+echo
+echo "== confirm and run =="
+rm -f web/.shipped admin/.shipped
+expect_fail "confirm fails when nothing shipped" scripts/surface confirm website
+expect_contains "run reports the deploy command" "deploy ->" scripts/surface run admin
+expect_ok "confirm passes after a real deploy" scripts/surface confirm admin
+expect_fail "run fails when deploy ships nothing" scripts/surface run website
+expect_contains "silent no-op deploy is named" "confirm" scripts/surface run website
+rm -f admin/.shipped
+git checkout -- . 2>/dev/null || true
+
+echo
+echo "== surface roots =="
+mkdir -p sub/site
+git init -q sub/site
+git -C sub/site config user.email harness@example.com
+git -C sub/site config user.name harness
+echo page >sub/site/index.html
+git -C sub/site add -A
+git -C sub/site commit -qm base
+cat >>surfaces.yml <<'YAML'
+
+  - id: sub
+    name: Separate checkout
+    root: sub/site
+    paths:
+      - "sub/site/"
+    verify: "true"
+    deploy: "true"
+    confirm: "true"
+YAML
+echo "sub/" >.gitignore
+expect_ok "surface in its own checkout, clean" scripts/surface check sub
+echo edited >>sub/site/index.html
+expect_contains "detect prefixes nested-repo paths" "sub	sub/site/index.html" scripts/surface detect
+expect_ok "nested-repo change passes its surface" scripts/surface check sub
+expect_fail "nested-repo change fails another surface" scripts/surface check website
+git -C sub/site checkout -- index.html
+rm -rf sub .gitignore
+git checkout -- surfaces.yml
 
 echo
 echo "== --base comparison =="

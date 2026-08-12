@@ -1,17 +1,24 @@
 #!/usr/bin/env bash
 # Deploy-surface contract for the harness.
 #
-# A surface is one deployable target of this repository: an app store build, a
-# website, an admin console. `surfaces.yml` declares which paths each surface
-# owns and which command deploys it, so the target of a task is a file in the
-# repository instead of an assumption in an agent's context.
+# A surface is one deployable target: a mobile build, a website, an admin
+# console. `surfaces.yml` declares which paths each surface owns, the one
+# command that deploys it, and the command that proves it actually shipped —
+# so the target of a task is a file in the repository rather than an
+# assumption in an agent's context.
 #
 # Subcommands:
 #   list                  print declared surfaces
 #   show <id>             print one surface in detail
 #   detect [--base REF]   map changed files back to surfaces
 #   check <id> [--base R] fail when changes escape the surface
-#   plan <id>             print the deploy and verify commands for the surface
+#   plan <id>             print the verify, deploy, and confirm commands
+#   confirm <id>          assert the surface actually shipped
+#   run <id>              verify, deploy, then confirm — as one command
+#
+# A surface may live in a subdirectory or a separate checkout through its
+# `root` field, so this works for a monorepo and for a set of sibling
+# repositories alike.
 #
 # With no surfaces.yml this script is a documented no-op.
 set -euo pipefail
@@ -36,10 +43,17 @@ no_config() {
 #   G<TAB>-<TAB>shared<TAB>item       repository-wide shared path
 parse() {
   awk '
-    function clean(s) {
-      sub(/[ \t]+#.*$/, "", s)
+    function clean(s,   q, i) {
       gsub(/^[ \t]+|[ \t]+$/, "", s)
-      if (s ~ /^".*"$/ || s ~ /^'"'"'.*'"'"'$/) s = substr(s, 2, length(s) - 2)
+      # A quoted value is taken verbatim up to its closing quote, so deploy and
+      # confirm commands may contain "#" without being truncated.
+      if (s ~ /^["'"'"']/) {
+        q = substr(s, 1, 1)
+        i = index(substr(s, 2), q)
+        if (i > 0) return substr(s, 2, i - 1)
+      }
+      sub(/[ \t]+#.*$/, "", s)
+      gsub(/[ \t]+$/, "", s)
       return s
     }
     /^[ \t]*#/ { next }
@@ -131,16 +145,52 @@ matches_any() {
   return 1
 }
 
+# A surface's root is the directory its changes are tracked in. It defaults to
+# the harness root, and may be a subdirectory or a separate git checkout.
+root_of() {
+  local root
+  root="$(field "$1" root)"
+  echo "${root:-.}"
+}
+
+roots() {
+  local id
+  for id in $(ids); do root_of "$id"; done | sort -u
+}
+
+# changed_files <root> [base] — paths are always reported relative to the
+# harness root, so globs in surfaces.yml read the same regardless of layout.
 changed_files() {
-  local base="$1"
-  if [[ -n "$base" ]]; then
-    git diff --name-only "$base"...HEAD
-    git diff --name-only "$base"
-  else
-    git status --porcelain --untracked-files=all |
-      cut -c4- |
-      sed 's/^.* -> //; s/^"//; s/"$//'
-  fi | sort -u
+  local root="${1:-.}" base="${2:-}" prefix=""
+
+  [[ -d "$root" ]] || die "surface root '$root' does not exist"
+  if ! git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    die "surface root '$root' is not a git work tree"
+  fi
+
+  [[ "$root" == "." ]] || prefix="${root%/}/"
+
+  {
+    if [[ -n "$base" ]]; then
+      git -C "$root" diff --name-only "$base"...HEAD
+      git -C "$root" diff --name-only "$base"
+    else
+      git -C "$root" status --porcelain --untracked-files=all |
+        cut -c4- |
+        sed 's/^.* -> //; s/^"//; s/"$//'
+    fi
+  } | sed "s|^|$prefix|" | sort -u
+}
+
+# Run a command declared in surfaces.yml from its surface's root.
+run_in_root() {
+  local root="$1" label="$2" command="$3"
+  if [[ -z "$command" ]]; then
+    echo "surface: no $label command declared; skipping."
+    return 0
+  fi
+  echo "surface: $label -> $command"
+  ( cd "$root" && eval "$command" )
 }
 
 # read_lines <array-name> — fill an array from stdin, one element per line.
@@ -166,8 +216,10 @@ cmd_show() {
   require_id "$id"
   echo "id:      $id"
   echo "name:    $(field "$id" name)"
-  echo "deploy:  $(field "$id" deploy)"
+  echo "root:    $(root_of "$id")"
   echo "verify:  $(field "$id" verify)"
+  echo "deploy:  $(field "$id" deploy)"
+  echo "confirm: $(field "$id" confirm)"
   echo "paths:"
   list_of "$id" paths | sed 's/^/  - /'
   local deny
@@ -179,30 +231,32 @@ cmd_show() {
 }
 
 cmd_detect() {
-  local base="$1" file id owners
+  local base="$1" file id owners root
   local shared=()
   read_lines shared < <(shared_paths)
   local seen=0
-  while IFS= read -r file; do
-    [[ -n "$file" ]] || continue
-    seen=1
-    owners=""
-    for id in $(ids); do
-      local paths=()
-      read_lines paths < <(list_of "$id" paths)
-      if ((${#paths[@]})) && matches_any "$file" "${paths[@]}"; then
-        owners="${owners:+$owners,}$id"
+  for root in $(roots); do
+    while IFS= read -r file; do
+      [[ -n "$file" ]] || continue
+      seen=1
+      owners=""
+      for id in $(ids); do
+        local paths=()
+        read_lines paths < <(list_of "$id" paths)
+        if ((${#paths[@]})) && matches_any "$file" "${paths[@]}"; then
+          owners="${owners:+$owners,}$id"
+        fi
+      done
+      if [[ -z "$owners" ]]; then
+        if ((${#shared[@]})) && matches_any "$file" "${shared[@]}"; then
+          owners="shared"
+        else
+          owners="unowned"
+        fi
       fi
-    done
-    if [[ -z "$owners" ]]; then
-      if ((${#shared[@]})) && matches_any "$file" "${shared[@]}"; then
-        owners="shared"
-      else
-        owners="unowned"
-      fi
-    fi
-    printf '%s\t%s\n' "$owners" "$file"
-  done < <(changed_files "$base")
+      printf '%s\t%s\n' "$owners" "$file"
+    done < <(changed_files "$root" "$base")
+  done
   ((seen)) || echo "No changed files."
 }
 
@@ -229,7 +283,7 @@ cmd_check() {
       continue
     fi
     violations+=("$file (outside surface '$id')")
-  done < <(changed_files "$base")
+  done < <(changed_files "$(root_of "$id")" "$base")
 
   if ((${#violations[@]})); then
     echo "Surface check failed for '$id'." >&2
@@ -247,18 +301,58 @@ cmd_check() {
 cmd_plan() {
   local id="$1"
   require_id "$id"
-  local deploy verify
-  deploy="$(field "$id" deploy)"
+  local verify deploy confirm
   verify="$(field "$id" verify)"
+  deploy="$(field "$id" deploy)"
+  confirm="$(field "$id" confirm)"
   echo "Surface '$id' ($(field "$id" name))"
+  echo "Root: $(root_of "$id")"
   echo
-  echo "Verify before deploy:"
-  echo "  ${verify:-<none declared>}"
+  echo "1. Verify:  ${verify:-<none declared>}"
+  echo "2. Deploy:  ${deploy:-<none declared>}"
+  echo "3. Confirm: ${confirm:-<none declared — a deploy that ships nothing will pass>}"
   echo
-  echo "Deploy:"
-  echo "  ${deploy:-<none declared>}"
-  echo
+  echo "Run all three with: scripts/surface run $id"
   echo "Do not run any other deploy command for this task."
+}
+
+# confirm answers the question a successful deploy command does not: did this
+# surface actually change? A command that exits 0 without shipping anything is
+# the failure mode that survives every other check.
+cmd_confirm() {
+  local id="$1"
+  require_id "$id"
+  local confirm root
+  confirm="$(field "$id" confirm)"
+  root="$(root_of "$id")"
+  if [[ -z "$confirm" ]]; then
+    echo "Surface '$id' declares no confirm command." >&2
+    echo "Add one so a deploy that succeeds without shipping is still caught." >&2
+    return 1
+  fi
+  run_in_root "$root" confirm "$confirm"
+  echo "Surface '$id' confirmed live."
+}
+
+cmd_run() {
+  local id="$1"
+  require_id "$id"
+  local root
+  root="$(root_of "$id")"
+  echo "Surface '$id' ($(field "$id" name)) in $root"
+  run_in_root "$root" verify "$(field "$id" verify)"
+  run_in_root "$root" deploy "$(field "$id" deploy)"
+  local confirm
+  confirm="$(field "$id" confirm)"
+  if [[ -z "$confirm" ]]; then
+    echo
+    echo "surface: WARNING — '$id' declares no confirm command." >&2
+    echo "surface: the deploy command exited 0, which is not the same as shipped." >&2
+    return 0
+  fi
+  run_in_root "$root" confirm "$confirm"
+  echo
+  echo "Surface '$id' deployed and confirmed."
 }
 
 main() {
@@ -295,8 +389,10 @@ main() {
     detect) cmd_detect "$base" ;;
     check) cmd_check "${args[0]:-}" "$base" ;;
     plan) cmd_plan "${args[0]:-}" ;;
+    confirm) cmd_confirm "${args[0]:-}" ;;
+    run) cmd_run "${args[0]:-}" ;;
     -h | --help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//' ;;
-    *) die "unknown subcommand '$sub' (list, show, detect, check, plan)" ;;
+    *) die "unknown subcommand '$sub' (list, show, detect, check, plan, confirm, run)" ;;
   esac
 }
 

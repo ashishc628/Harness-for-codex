@@ -23,8 +23,8 @@ predictable baseline:
 - Standardize coding-agent workflows across OpenAI Codex, Claude Code, and Cursor.
 - Give automation agents stable commands for setup, checks, tests, and handoff evaluation.
 - Keep project decisions and task briefs in predictable locations.
-- Keep multi-target projects (app builds, website, admin console) from shipping
-  a change to the wrong surface.
+- Keep multi-target projects (app builds, website, admin console) from editing
+  the wrong surface, and from reporting a deploy that never shipped.
 - Add a language stack later without replacing the harness contract.
 
 ## Quick Start
@@ -43,30 +43,35 @@ scripts/doctor
 - `scripts/check`: lint, format, type, and test checks when available.
 - `scripts/test`: focused test-suite entrypoint.
 - `scripts/eval`: complete handoff verification through doctor, bootstrap, and check.
-- `scripts/surface`: deploy-surface targeting and containment for multi-target repositories.
+- `scripts/surface`: deploy-surface targeting, containment, and ship confirmation.
 - `tasks/TEMPLATE.md`: task brief template for work that needs durable context.
 - `docs/decisions.md`: durable decisions future agents should preserve.
 
 ## Deploy Surfaces
 
-If a repository ships to more than one target — an App Store build, a Play
-Store build, a website, an admin console — the target of a task is the piece of
-context most easily lost, and losing it fails quietly: the agent edits a
-plausible file, runs a deploy command that succeeds, and reports success on the
-wrong surface.
+Most projects ship to more than one target — a mobile build, a website, an
+admin console — through deploy commands that look alike. Two things decide
+whether a task actually succeeded, and neither was checked: *which target the
+change was for*, and *whether the deploy shipped anything*. A deploy command
+exiting 0 proves only that the command ran.
 
 Declare the targets once, in `surfaces.yml`:
 
 ```sh
 cp surfaces.example.yml surfaces.yml
 scripts/surface list
-scripts/surface plan website     # the only deploy command for this surface
-scripts/surface check website    # fails if the diff escapes the surface
+scripts/surface check web    # fails if the diff escapes the surface
+scripts/surface run web      # verify, deploy, then confirm it is live
 ```
 
-`SURFACE=website scripts/check` folds containment into normal verification, and
+Each surface declares the paths it owns, the paths it must never touch, the one
+command that deploys it, and a `confirm` command that proves the new version is
+actually live. A surface's `root` may be a subdirectory or a separate checkout,
+so this works for a monorepo and for sibling repositories alike.
+
+`SURFACE=web scripts/check` folds containment into normal verification, and
 `tasks/TEMPLATE.md` records the surface so it survives context compaction.
-Repositories without `surfaces.yml` are unaffected. See
+Projects without `surfaces.yml` are unaffected. See
 [docs/surfaces.md](docs/surfaces.md).
 
 ## Workflow

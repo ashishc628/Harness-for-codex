@@ -1,18 +1,25 @@
 # Deploy Surfaces
 
-A **surface** is one deployable target of a repository: an iOS build, an
-Android build, a marketing website, an admin console. Most projects that adopt
-this harness have several, and they are deployed by different commands that
-look alike.
+A **surface** is one deployable target of a project: a mobile build, a
+marketing website, an admin console, a docs site. Most projects have several,
+and they are deployed by different commands that look alike.
 
-The harness already learned that agent instructions must live in a file rather
-than in chat context. The deploy target needs the same treatment. When the
-target only exists as a sentence in the opening message, it is the first thing
-lost to context compaction — and the resulting failure is quiet: the agent
-edits a plausible file, runs a deploy command that succeeds, and reports
-success on the wrong target.
+The harness verifies that code is healthy. It did not verify two other things
+that decide whether a task actually succeeded:
 
-Surface targeting makes the target a fact in the repository.
+1. **Which target the change was for.** Nothing recorded it, so it lived only
+   in the conversation and was the first thing lost to compaction.
+2. **Whether the deploy actually shipped.** A deploy command exiting 0 means
+   the command ran, not that the new version is live. A push to a host whose
+   publish step is manual, a build uploaded from the wrong directory, a deploy
+   to a stale project alias — all exit 0.
+
+Together these produce the quietest possible failure: a plausible file is
+edited, a command succeeds, the handoff says done, and nothing changed on the
+target anyone cared about.
+
+Surface targeting makes the target a fact in the repository and makes shipping
+an assertion rather than an assumption.
 
 ## Enabling It
 
@@ -32,45 +39,73 @@ shared:
   - "docs/"
 
 surfaces:
-  - id: website
+  - id: web
     name: Marketing website
+    root: sites/web
     paths:
-      - "web/"
+      - "sites/web/"
     deny:
-      - "admin/"
-    verify: "npm --prefix web run build"
-    deploy: "npm --prefix web run deploy"
+      - "sites/admin/"
+    verify: "npm run build"
+    deploy: "npm run deploy"
+    confirm: 'test "$(curl -fsS https://example.com/build.txt)" = "$(git rev-parse --short HEAD)"'
 ```
 
-- `paths`: globs the surface owns. `**` matches across directories; a trailing
-  `/` means everything beneath that directory.
+- `root`: the directory whose changes belong to this surface. Defaults to the
+  harness root. Point it at a subdirectory in a monorepo, or at a **sibling
+  checkout** when each surface has its own repository — the containment check
+  works across separate git trees, not just within one.
+- `paths`: globs the surface owns, relative to the harness root. `**` matches
+  across directories; a trailing `/` means everything beneath it.
 - `deny`: paths this surface must never touch, even if a `paths` glob would
-  allow them. Use it for the neighbours that are easy to confuse — the admin
-  console next to the website, the web build next to the app build.
-- `shared`: paths any surface may change, such as docs and harness files.
-- `verify` / `deploy`: the commands for this surface. `deploy` is the *only*
-  deploy command an agent may run for a task targeting this surface.
+  allow them. Use it for the neighbours that are easy to confuse.
+- `verify` / `deploy` / `confirm`: the commands for this surface, run from its
+  `root`. `deploy` is the only deploy command allowed for a task on this
+  surface. `confirm` must exit 0 only when the new version is actually live.
+- Wrap a command in single quotes when it contains double quotes.
+
+### Writing a good `confirm`
+
+`confirm` is the part that earns its keep. It should read the deployed thing
+from outside, not re-read local state:
+
+```yaml
+# compare a build id served by the deployment to the local commit
+confirm: 'test "$(curl -fsS https://example.com/build.txt)" = "$(git rev-parse --short HEAD)"'
+
+# assert the newest build finished
+confirm: "eas build:list --limit 1 --json --non-interactive | grep -q FINISHED"
+```
+
+A `confirm` that always passes is worse than none, because it converts an open
+question into a false answer.
+
+Surfaces with a **manual publish step** belong here too. Declare the manual
+step as the `deploy` command so the agent has to surface it rather than
+assuming a push was enough, and let `confirm` decide whether it happened.
 
 ## Commands
 
 ```sh
 scripts/surface list              # declared surfaces
-scripts/surface show website      # one surface in detail
+scripts/surface show web          # one surface in detail
 scripts/surface detect            # which surface owns each changed file
-scripts/surface check website     # fail if changes escape the surface
-scripts/surface plan website      # the verify and deploy commands to use
+scripts/surface check web         # fail if changes escape the surface
+scripts/surface plan web          # the three commands for this surface
+scripts/surface confirm web       # is it actually live?
+scripts/surface run web           # verify, deploy, confirm
 ```
 
 `detect` and `check` read uncommitted changes by default, including untracked
 files. Pass `--base <ref>` to inspect a branch or commit range instead:
 
 ```sh
-scripts/surface check website --base origin/main
+scripts/surface check web --base origin/main
 ```
 
 ## Where It Runs
 
-- `SURFACE=website scripts/check` runs the containment check as part of normal
+- `SURFACE=web scripts/check` runs the containment check as part of normal
   verification. Plain `scripts/check` is unchanged.
 - The optional `harness-surface` pre-commit hook runs the same check before a
   commit, and skips itself when `SURFACE` is unset.
@@ -79,8 +114,8 @@ scripts/surface check website --base origin/main
 ## Failure Output
 
 ```
-Surface check failed for 'website'.
-  admin/panel.tsx (denied by surface 'website')
+Surface check failed for 'web'.
+  sites/admin/panel.tsx (denied by surface 'web')
 
 These changes do not belong to the declared surface. Either correct the
 target in the task brief or move the change to its own task.
@@ -89,14 +124,16 @@ Run 'scripts/surface detect' to see which surface owns each file.
 
 The check names files, not intentions. If the diff is right and the declared
 surface is wrong, fix the task brief; if the brief is right, the diff is the
-bug.
+bug. Do not resolve a failure by widening `paths`.
 
 ## Limits
 
-- Containment is path-based. Two surfaces that legitimately share a directory —
-  an iOS and an Android build over the same `app/` tree — cannot be separated
-  by paths alone. Use `deny` for the directories they must never cross into,
-  and rely on `plan` to keep the deploy commands distinct.
-- The check verifies *what changed*, not *what was deployed*. It narrows the
-  wrong-target failure to the point where it is cheap to catch: before the
-  commit, and before the deploy command is chosen.
+- Containment is path-based. Two surfaces that legitimately share a tree — an
+  iOS and an Android build over the same app directory — cannot be separated by
+  paths alone. Use `deny` for the directories they must never cross, and rely on
+  distinct `deploy` and `confirm` commands to keep them apart.
+- `confirm` is only as good as the signal it reads. If a deployment exposes no
+  version marker, add one; a confirm that cannot distinguish old from new is
+  not a confirm.
+- Surfaces are declared, not discovered. A new target that nobody adds to
+  `surfaces.yml` is invisible to every check here.
